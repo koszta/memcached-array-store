@@ -47,7 +47,7 @@ module.exports = class MemcachedArray extends EventEmitter
   perform: (key, params..., callback) ->
     @sync (err) =>
       return callback err if err?
-      array = @values.slice 0
+      array = @values.slice()
       returnValue = array[key] params...
       @saveWithValue array, (err) =>
         if err?
@@ -60,14 +60,14 @@ module.exports = class MemcachedArray extends EventEmitter
   performGetter: (key, callback) ->
     @sync (err) =>
       return callback err if err?
-      array = @values.slice 0
+      array = @values.slice()
       value = array[key]
       callback null, value
       @emit @getterName(key), this, value
   performSetter: (key, value, callback) ->
     @sync (err) =>
       return callback err if err?
-      array = @values.slice 0
+      array = @values.slice()
       array[key] = value
       @saveWithValue array, (err) =>
         if err?
@@ -79,14 +79,21 @@ module.exports = class MemcachedArray extends EventEmitter
         @emit @setterName(key), this, value
 
 Object.getOwnPropertyNames(Array::).forEach (key) ->
-  return if key in ['constructor', 'toString']
-  switch typeof Array::[key]
-    when 'function'
-      MemcachedArray::[key] = (params..., callback) ->
-        console.log key, params..., callback
-        @perform key, params..., callback
-    else
-      MemcachedArray::[MemcachedArray::getterName(key)] = (callback) ->
-        @performGetter key, callback
-      MemcachedArray::[MemcachedArray::setterName(key)] = (value, callback) ->
-        @performSetter key, value, callback
+  return if key == 'constructor'
+  if key in ['toString', 'toLocaleString']
+    originalMethod = this[key]
+    MemcachedArray::[key] = (callback) ->
+      if typeof callback == 'function'
+        @perform key, [], callback
+      else
+        originalMethod.apply this
+  else
+    switch typeof Array::[key]
+      when 'function'
+        MemcachedArray::[key] = (params..., callback) ->
+          @perform key, params..., callback
+      else
+        MemcachedArray::[MemcachedArray::getterName(key)] = (callback) ->
+          @performGetter key, callback
+        MemcachedArray::[MemcachedArray::setterName(key)] = (value, callback) ->
+          @performSetter key, value, callback
